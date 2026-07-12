@@ -40,9 +40,24 @@ public class AddPage extends HttpServlet {
            String content=request.getParameter("content");
            if(fileName!=null && content!=null)
            {
+            // Validate filename: allow only simple names (letters, digits, underscore, dash) with a safe extension.
+            // Reject path separators, traversal sequences, and disallowed/executable extensions to prevent
+            // arbitrary file write / web shell upload (CWE-434).
+            if(!fileName.matches("[A-Za-z0-9_-]{1,64}\\.(txt|html|htm)"))
+            {
+                out.print("Invalid filename");
+                return;
+            }
             String pagesDir=getServletContext().getRealPath("/pages");
+            File pagesDirFile=new File(pagesDir).getCanonicalFile();
             String filePath=pagesDir+"/"+fileName;
-            File f=new File(filePath);
+            File f=new File(filePath).getCanonicalFile();
+            // Ensure the resolved file is still within the intended pages directory.
+            if(f.getParentFile()==null || !f.getParentFile().equals(pagesDirFile))
+            {
+                out.print("Invalid filename");
+                return;
+            }
             if(f.exists())
             {
                 f.delete();
