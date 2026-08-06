@@ -8,6 +8,9 @@ package org.cysecurity.cspf.jvl.controller;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -24,6 +27,26 @@ import org.cysecurity.cspf.jvl.model.DBConnect;
  * @author breakthesec
  */
 public class Register extends HttpServlet {
+
+    /**
+     * Hashes a password using PBKDF2-like iterated SHA-256 with a per-user salt.
+     * Returned format: "iterations$base64Salt$base64Hash".
+     */
+    private static String hashPassword(String password) throws NoSuchAlgorithmException {
+        int iterations = 100000;
+        byte[] salt = new byte[16];
+        new SecureRandom().nextBytes(salt);
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        md.update(salt);
+        byte[] hash = md.digest(password.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        for (int i = 1; i < iterations; i++) {
+            md.reset();
+            hash = md.digest(hash);
+        }
+        String b64Salt = java.util.Base64.getEncoder().encodeToString(salt);
+        String b64Hash = java.util.Base64.getEncoder().encodeToString(hash);
+        return iterations + "$" + b64Salt + "$" + b64Hash;
+    }
 
     /**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
@@ -49,13 +72,20 @@ public class Register extends HttpServlet {
           {
               secret="nosecret";
           }
+          String hashedPass;
+          try {
+              hashedPass = hashPassword(pass == null ? "" : pass);
+          } catch (NoSuchAlgorithmException nsae) {
+              response.sendRedirect("Register.jsp");
+              return;
+          }
             try
              {
                     if(con!=null && !con.isClosed())
                                {
                                   
                                    Statement stmt = con.createStatement();  
-                                  stmt.executeUpdate("INSERT into users(username, password, email, About,avatar,privilege,secretquestion,secret) values ('"+user+"','"+pass+"','"+email+"','"+about+"','default.jpg','user',1,'"+secret+"')");
+                                  stmt.executeUpdate("INSERT into users(username, password, email, About,avatar,privilege,secretquestion,secret) values ('"+user+"','"+hashedPass+"','"+email+"','"+about+"','default.jpg','user',1,'"+secret+"')");
                                        stmt.executeUpdate("INSERT into UserMessages(recipient, sender, subject, msg) values ('"+user+"','admin','Hi','Hi<br/> This is admin of this page. <br/> Welcome to Our Forum')");
              
                                     response.sendRedirect("index.jsp");
