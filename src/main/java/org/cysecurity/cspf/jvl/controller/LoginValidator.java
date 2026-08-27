@@ -8,7 +8,9 @@ package org.cysecurity.cspf.jvl.controller;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.security.MessageDigest;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import javax.servlet.ServletException;
@@ -26,6 +28,21 @@ import org.cysecurity.cspf.jvl.model.DBConnect;
  * @author breakthesec
  */
 public class LoginValidator extends HttpServlet {
+
+    /**
+     * Hashes a plaintext password using SHA-256 for comparison against
+     * the stored password hash. This avoids handling or comparing passwords
+     * in plaintext at the persistence layer.
+     */
+    private static String hashPassword(String plaintext) throws Exception {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        byte[] digest = md.digest(plaintext.getBytes("UTF-8"));
+        StringBuilder sb = new StringBuilder();
+        for (byte b : digest) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    }
 
     /**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
@@ -48,8 +65,11 @@ public class LoginValidator extends HttpServlet {
                     if(con!=null && !con.isClosed())
                                {
                                    ResultSet rs=null;
-                                   Statement stmt = con.createStatement();  
-                                   rs=stmt.executeQuery("select * from users where username='"+user+"' and password='"+pass+"'");
+                                   String hashedPass = hashPassword(pass);
+                                   PreparedStatement ps = con.prepareStatement("select * from users where username=? and password=?");
+                                   ps.setString(1, user);
+                                   ps.setString(2, hashedPass);
+                                   rs = ps.executeQuery();
                                    if(rs != null && rs.next()){
                                    HttpSession session=request.getSession();
                                    session.setAttribute("isLoggedIn", "1");
