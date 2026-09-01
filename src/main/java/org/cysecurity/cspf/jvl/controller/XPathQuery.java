@@ -16,7 +16,12 @@ import javax.servlet.http.HttpSession;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathFactory;
+import javax.xml.xpath.XPathVariableResolver;
+
+import javax.xml.namespace.QName;
 
 import org.w3c.dom.Document;
 /**
@@ -32,8 +37,8 @@ public class XPathQuery extends HttpServlet {
         response.setContentType("text/html;charset=UTF-8");
         PrintWriter out = response.getWriter();
         try {
-            String user=request.getParameter("username");
-            String pass=request.getParameter("password");
+            final String user=request.getParameter("username");
+            final String pass=request.getParameter("password");
             
             //XML Source:
             String XML_SOURCE=getServletContext().getRealPath("/WEB-INF/users.xml");
@@ -46,11 +51,30 @@ public class XPathQuery extends HttpServlet {
             
             XPath xPath=XPathFactory.newInstance().newXPath();
             
-            //XPath Query:
-            String xPression="/users/user[username='"+user+"' and password='"+pass+"']/name";
+            //Use variable resolver to safely bind user-supplied values, preventing XPath injection
+            xPath.setXPathVariableResolver(new XPathVariableResolver() {
+                @Override
+                public Object resolveVariable(QName variableName) {
+                    if (variableName == null) {
+                        return null;
+                    }
+                    String localPart = variableName.getLocalPart();
+                    if ("username".equals(localPart)) {
+                        return user == null ? "" : user;
+                    }
+                    if ("password".equals(localPart)) {
+                        return pass == null ? "" : pass;
+                    }
+                    return null;
+                }
+            });
+            
+            //XPath Query with parameterized variables:
+            String xPression="/users/user[username=$username and password=$password]/name";
             
             //running Xpath query:
-            String name=xPath.compile(xPression).evaluate(xDoc);
+            XPathExpression expr = xPath.compile(xPression);
+            String name = (String) expr.evaluate(xDoc, XPathConstants.STRING);
             out.println(name);
             if(name.isEmpty())
             {
