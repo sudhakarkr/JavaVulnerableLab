@@ -15,6 +15,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.cysecurity.cspf.jvl.model.DBConnect;
+import org.owasp.encoder.Encode;
  
 /**
  *
@@ -47,10 +48,10 @@ public class SendMessage extends HttpServlet {
                         {
                            //PreparedStatement to Prevent SQL Injection attack:       
                             PreparedStatement pstmt=con.prepareStatement("INSERT into UserMessages(recipient, sender, subject, msg) values (?,?,?,?)");
-                            pstmt.setString(1, recipient);
-                            pstmt.setString(2, sender);
-                            pstmt.setString(3, subject);
-                            pstmt.setString(4, msg);
+                            pstmt.setString(1, Encode.forHtml(recipient));
+                            pstmt.setString(2, Encode.forHtml(sender));
+                            pstmt.setString(3, Encode.forHtml(subject));
+                            pstmt.setString(4, Encode.forHtml(msg));
                             pstmt.executeUpdate();
                             response.sendRedirect(request.getContextPath()+"/vulnerability/SendMessage.jsp?status=<b style='color:green'>* Message successfully sent *</b>");
                                     
