@@ -13,6 +13,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
@@ -43,6 +44,15 @@ public class xxe extends HttpServlet {
         {
           InputStream xml=request.getInputStream();
           DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+          // Protect against XML External Entity (XXE) attacks (CWE-611)
+          factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+          factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+          factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+          factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+          factory.setXIncludeAware(false);
+          factory.setExpandEntityReferences(false);
+          factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+          factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
           DocumentBuilder builder = factory.newDocumentBuilder();
           InputSource is = new InputSource(xml); 	
           Document doc = builder.parse(is);
